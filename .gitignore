@@ -7,6 +7,8 @@ credentials.json
 # C extensions
 *.so
 .venv
+.idea/
+.idea
 .env
 token.json
 src/google_docs/token.json
