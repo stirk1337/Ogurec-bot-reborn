@@ -3,10 +3,14 @@ from random import shuffle
 
 import discord
 from discord import app_commands
+from discord.ext import tasks
+from discord.ext.commands import Bot
 
+from config import TIME_ZONE, BOT_CHAT_ID
 from src.cogs.base import BaseCog
 from src.google_docs.google_docs import get_table
-from src.utils.role_utils import get_all_users_with_role
+from src.utils.emoji_utils import get_random_formatted_emoji, get_random_sticker
+from src.utils.role_utils import get_all_users_with_role, get_role_id_by_name
 
 UNO_LOGO_URL = ('https://media.discordapp.net/attachments/1043248714652860477/1206889284242772019'
                 '/1740671508_preview_1280px-UNO_Logo_svg.png?ex=65dda63c&is=65cb313c&hm'
@@ -18,8 +22,14 @@ GOOGLE_SPREADSHEETS_LOGO_URL = ('https://media.discordapp.net/attachments/104324
                                 '=81f134804f73570f2409022106c6b367ca4045418234c625003ef16f0399dc44&=&format=webp'
                                 '&width=585&height=585')
 
+UNO_TIME = datetime.time(hour=19, minute=47, tzinfo=TIME_ZONE)
+
 
 class Uno(BaseCog):
+    def __init__(self, bot: Bot):
+        super().__init__(bot)
+        self.remember_uno.start()
+
     @app_commands.command(description='Отобразить таблицу UNO из Google Таблицы')
     async def uno(self, interaction: discord.Interaction):
         values = get_table()['values']
@@ -47,3 +57,10 @@ class Uno(BaseCog):
         for player in uno_players:
             embed.add_field(name='', value=player, inline=False)
         await interaction.response.send_message(embed=embed)
+
+    @tasks.loop(time=UNO_TIME)
+    async def remember_uno(self):
+        channel = self.bot.get_channel(BOT_CHAT_ID)  # main channel
+        role_id = get_role_id_by_name(channel.guild, 'Uno')
+        await channel.send(f'<@&{role_id}>, напоминаю что сегодня UNO {get_random_formatted_emoji(channel.guild)}')
+        await channel.send(stickers=[get_random_sticker(channel.guild)])
