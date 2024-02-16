@@ -1,11 +1,9 @@
 from typing import List
 
-import discord
-from discord import Guild
+from discord import Guild, Member, Role
 
 
-def get_all_users_with_role(interaction: discord.Interaction, role_name: str) -> List[str]:
-    server = interaction.guild
+def get_all_users_with_role(server: Guild, role_name: str) -> List[Member]:
     role_id = server.roles[0]
     for role in server.roles:
         if role_name == role.name:
@@ -14,11 +12,11 @@ def get_all_users_with_role(interaction: discord.Interaction, role_name: str) ->
     users = []
     for member in server.members:
         if role_id in member.roles:
-            users.append(member.display_name)
+            users.append(member)
     return users
 
 
-def get_role_id_by_name(server: Guild, role_name: str) -> int | None:
+def get_role_by_name(server: Guild, role_name: str) -> Role | None:
     for role in server.roles:
         if role_name == role.name:
-            return role.id
+            return role

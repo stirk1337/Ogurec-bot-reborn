@@ -1,8 +1,12 @@
+from datetime import datetime as dt
+
 import discord
 from discord.ext.commands import Bot
 
-from config import TOKEN
+from config import TOKEN, TIME_ZONE
+from src.cogs.fun.fun_cog import Fun
 from src.cogs.help_cog import Help
+from src.cogs.rebrand.rebrand_cog import Rebrand
 from src.cogs.uno_cog import Uno
 
 intents = discord.Intents.default()
@@ -16,6 +20,8 @@ bot = Bot(command_prefix='!', intents=intents)
 async def on_ready():
     await bot.add_cog(Uno(bot))
     await bot.add_cog(Help(bot))
+    await bot.add_cog(Fun(bot))
+    await bot.add_cog(Rebrand(bot))
     print(f'We have logged in as {bot.user}')
 
 
@@ -24,5 +30,9 @@ async def sync(ctx):
     synced = await bot.tree.sync()
     await ctx.send(f"Синхронизировано {len(synced)} команд.")
 
+
+@bot.command(name="time")
+async def sync(ctx):
+    await ctx.send(dt.now(tz=TIME_ZONE).strftime("%H:%M UTC %a") + f' week {dt.now(tz=TIME_ZONE).isocalendar()[1]}')
 
 bot.run(TOKEN)
