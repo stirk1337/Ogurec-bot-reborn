@@ -3,12 +3,14 @@ import random
 
 import discord
 from discord import app_commands, Message
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.ext.commands import Bot
 
+from config import MAIN_CHAT_ID
 from src.cogs.base import BaseCog
 from src.cogs.fun.eight_ball import EIGHT_BALL
 from src.cogs.fun.game_reviews import GAME_REVIEWS
+from src.cogs.fun.games_list import GAMES
 from src.utils.emoji_utils import get_random_formatted_emoji, get_random_sticker
 
 
@@ -19,6 +21,12 @@ class Fun(BaseCog):
         self.ON_MESSAGE_GUARANTEE = 750
         self.game_reviews = GAME_REVIEWS
         self.answers = EIGHT_BALL
+        self.bot_play.start()
+        self.statuses = [
+            discord.Status.online,
+            discord.Status.idle,
+            discord.Status.dnd,
+        ]
 
     async def answer_question(self, message: Message) -> bool:
         if len(message.content) > 0 and self.bot.user.mentioned_in(message):
@@ -101,3 +109,15 @@ class Fun(BaseCog):
         async with interaction.channel.typing():
             await asyncio.sleep(random.randint(1, 10))
             await interaction.followup.send(self.game_reviews[random.randint(0, len(self.game_reviews) - 1)])
+
+    @tasks.loop(hours=1)
+    async def bot_play(self):
+        channel = self.bot.get_channel(MAIN_CHAT_ID)
+        game = random.choice(GAMES)
+        activity = discord.Game(name=game)
+        await self.bot.change_presence(status=random.choice(self.statuses), activity=activity)
+        random_number = random.randint(1, 150)
+        if random_number == 1:
+            await channel.send(f'Жёстко иду играть в {game}',
+                               stickers=[get_random_sticker(channel.guild)])
+
