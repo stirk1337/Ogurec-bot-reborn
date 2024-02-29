@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime as dt
 
 import discord
@@ -5,6 +6,7 @@ from discord.ext.commands import Bot
 
 from config import TOKEN, TIME_ZONE
 from src.cogs.fun.fun_cog import Fun
+from src.cogs.fun.pyrogram.pyro_bot import app
 from src.cogs.help_cog import Help
 from src.cogs.rebrand.rebrand_cog import Rebrand
 from src.cogs.uno_cog import Uno
@@ -32,7 +34,18 @@ async def sync(ctx):
 
 
 @bot.command(name="time")
-async def sync(ctx):
+async def time(ctx):
     await ctx.send(dt.now(tz=TIME_ZONE).strftime("%H:%M UTC %a") + f' week {dt.now(tz=TIME_ZONE).isocalendar()[1]}')
 
-bot.run(TOKEN)
+
+async def start_bots():
+    await asyncio.gather(
+        bot.start(TOKEN),
+        app.start()
+    )
+    print('Both bots started successfully')
+
+
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(start_bots())

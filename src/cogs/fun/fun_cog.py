@@ -1,5 +1,7 @@
 import asyncio
+import json
 import random
+import enum
 
 import discord
 from discord import app_commands, Message
@@ -11,14 +13,24 @@ from src.cogs.base import BaseCog
 from src.cogs.fun.eight_ball import EIGHT_BALL
 from src.cogs.fun.game_reviews import GAME_REVIEWS
 from src.cogs.fun.games_list import GAMES
+from src.cogs.fun.pyrogram.pyro_bot import send_gpt_message
+from src.tenor.tenor import get_first_tenor_gif_url
 from src.utils.emoji_utils import get_random_formatted_emoji, get_random_sticker
+from src.utils.mention_utils import remove_user_mentions
+
+
+class GptStatus(enum.Enum):
+    FREE = 'free'
+    GENERATING = 'generating'
 
 
 class Fun(BaseCog):
     def __init__(self, bot: Bot):
         super().__init__(bot)
         self.on_message_counter = 0
+        self.on_game_counter = 0
         self.ON_MESSAGE_GUARANTEE = 750
+        self.ON_GAME_GUARANTEE = 5
         self.game_reviews = GAME_REVIEWS
         self.answers = EIGHT_BALL
         self.bot_play.start()
@@ -27,14 +39,24 @@ class Fun(BaseCog):
             discord.Status.idle,
             discord.Status.dnd,
         ]
+        self.GAME_STATS_PATH_JSON = 'src/cogs/fun/game_stats.json'
+        with open(self.GAME_STATS_PATH_JSON, 'r') as fp:
+            self.game_stats = json.load(fp)
+        self.gpt_status = GptStatus.FREE
+        self.gpt_answer = ''
 
     async def answer_question(self, message: Message) -> bool:
-        if len(message.content) > 0 and self.bot.user.mentioned_in(message):
-            if message.content[-1] == '?':
+        if len(message.content) >= 2 and self.bot.user.mentioned_in(message) and message.content[-1] in ['?', '.', '!']:
+            if self.gpt_status == GptStatus.FREE:
+                self.gpt_status = GptStatus.GENERATING
                 async with message.channel.typing():
-                    await asyncio.sleep(random.randint(2, 10))
-                    await message.channel.send(random.choice(self.answers), reference=message)
-                    return True
+                    answer = await send_gpt_message(remove_user_mentions(message.content))
+                    if answer:
+                        await message.channel.send(answer, reference=message)
+                self.gpt_status = GptStatus.FREE
+            else:
+                await message.channel.send("Попробуй через 10 секунд. Я пока занят", reference=message)
+            return True
         return False
 
     async def answer_ping(self, message: Message):
@@ -116,8 +138,33 @@ class Fun(BaseCog):
         game = random.choice(GAMES)
         activity = discord.Game(name=game)
         await self.bot.change_presence(status=random.choice(self.statuses), activity=activity)
-        random_number = random.randint(1, 150)
-        if random_number == 1:
-            await channel.send(f'Жёстко иду играть в {game}',
-                               stickers=[get_random_sticker(channel.guild)])
+        random_number = random.randint(1, 50)
+        if game not in self.game_stats:
+            self.game_stats[game] = 0
+        self.game_stats[game] += 1
+        self.on_game_counter += 1
+        with open(self.GAME_STATS_PATH_JSON, 'w') as fp:
+            json.dump(self.game_stats, fp)
+        if random_number == 10 or self.on_game_counter == self.ON_GAME_GUARANTEE:
+            await channel.send(f'Жёстко иду играть в {game}')
+            gif_url = await get_first_tenor_gif_url(game)
+            await channel.send(gif_url)
+            self.on_game_counter = 0
 
+    @app_commands.command(description='Мой профиль Steam (ну типа)')
+    async def game_stats(self, interaction: discord.Interaction):
+        embed_maximum_fields_count = 25
+        steam_icon = ('https://media.discordapp.net/attachments/1043248714652860477/1209895513684578404/2048px'
+                      '-Steam_icon_logo.png?ex=65e89601&is=65d62101&hm'
+                      '=f55079bb3d466b9d8b53a377d780361c87b38ec2c0ccaad1decbbbc23f4e50c1&=&format=webp&quality'
+                      '=lossless&width=590&height=590')
+        games_count = min(len(self.game_stats), embed_maximum_fields_count)
+        embed = discord.Embed(title=f"Мой топ {games_count} игр",
+                              color=discord.Color.random())
+        sorted_games = {k: v for k, v in sorted(self.game_stats.items(), key=lambda item: item[1], reverse=True)}
+        for i, k in enumerate(sorted_games):
+            embed.add_field(name='', value=f'{k} ({sorted_games[k]} ч.)', inline=False)
+            if i == embed_maximum_fields_count - 1:
+                break
+        embed.set_thumbnail(url=steam_icon)
+        await interaction.response.send_message(embed=embed)
