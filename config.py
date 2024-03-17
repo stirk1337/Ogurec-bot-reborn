@@ -16,5 +16,5 @@ TIME_ZONE = timezone(timedelta(hours=5))  # Russia, Ekaterinburg
 BOT_CHAT_ID = 749662464538443948
 MAIN_CHAT_ID = 670981415306788870
 
-GPT_TELEGRAM_NAME_STR = 'GPT_chat_chatgpt_bot'
+GPT_TELEGRAM_NAME_STR = 'gpt3_unlim_chatbot'
 MAXIMUM_GPT_MESSAGE_LENGTH = 50

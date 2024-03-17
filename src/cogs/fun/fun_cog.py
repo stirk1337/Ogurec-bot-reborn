@@ -2,6 +2,7 @@ import asyncio
 import json
 import random
 import enum
+from typing import List
 
 import discord
 from discord import app_commands, Message
@@ -13,7 +14,7 @@ from src.cogs.base import BaseCog
 from src.cogs.fun.eight_ball import EIGHT_BALL
 from src.cogs.fun.game_reviews import GAME_REVIEWS
 from src.cogs.fun.games_list import GAMES
-from src.cogs.fun.pyrogram.pyro_bot import send_gpt_message
+from src.cogs.fun.pyrogram.pyro_bot import send_gpt_message, gpt_stack
 from src.tenor.tenor import get_first_tenor_gif_url
 from src.utils.emoji_utils import get_random_formatted_emoji, get_random_sticker
 from src.utils.mention_utils import remove_user_mentions
@@ -34,6 +35,7 @@ class Fun(BaseCog):
         self.game_reviews = GAME_REVIEWS
         self.answers = EIGHT_BALL
         self.bot_play.start()
+        self.reset_gpt_dialog_history.start()
         self.statuses = [
             discord.Status.online,
             discord.Status.idle,
@@ -42,20 +44,12 @@ class Fun(BaseCog):
         self.GAME_STATS_PATH_JSON = 'src/cogs/fun/game_stats.json'
         with open(self.GAME_STATS_PATH_JSON, 'r') as fp:
             self.game_stats = json.load(fp)
-        self.gpt_status = GptStatus.FREE
-        self.gpt_answer = ''
 
     async def answer_question(self, message: Message) -> bool:
-        if len(message.content) >= 2 and self.bot.user.mentioned_in(message) and message.content[-1] in ['?', '.', '!']:
-            if self.gpt_status == GptStatus.FREE:
-                self.gpt_status = GptStatus.GENERATING
-                async with message.channel.typing():
-                    answer = await send_gpt_message(remove_user_mentions(message.content))
-                    if answer:
-                        await message.channel.send(answer, reference=message)
-                self.gpt_status = GptStatus.FREE
-            else:
-                await message.channel.send("Попробуй через 10 секунд. Я пока занят", reference=message)
+        if self.bot.user.mentioned_in(message) and message.content[-1] in ['?', '.', '!']:
+            async with message.channel.typing():
+                await send_gpt_message(remove_user_mentions(message.content), use_moods=True)
+                gpt_stack.append(message)
             return True
         return False
 
@@ -150,6 +144,11 @@ class Fun(BaseCog):
             gif_url = await get_first_tenor_gif_url(game)
             await channel.send(gif_url)
             self.on_game_counter = 0
+
+    @tasks.loop(hours=3)
+    async def reset_gpt_dialog_history(self):
+        await send_gpt_message('Reset dialog history')
+        await send_gpt_message('Очистить историю диалога')
 
     @app_commands.command(description='Мой профиль Steam (ну типа)')
     async def game_stats(self, interaction: discord.Interaction):
