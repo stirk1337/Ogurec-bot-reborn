@@ -56,7 +56,7 @@ class Fun(BaseCog):
         return False
 
     async def send_random_phrase(self, message: Message) -> bool:
-        random_number = random.randint(1, 100)
+        random_number = random.randint(1, 300)
         if random_number in [1, 2]:
             async with message.channel.typing():
                 await send_gpt_message(remove_user_mentions(message.content), use_moods=True)
@@ -110,7 +110,8 @@ class Fun(BaseCog):
         message_words = message.content.split()
         for message_word in message_words:
             for word in BAN_WORDS:
-                if fuzz.ratio(word, message_word.lower()) >= 50:
+                if fuzz.ratio(word, message_word.lower()) > 65:
+                    print(fuzz.ratio(word, message_word.lower()))
                     emojis = message.guild.emojis
                     filter_emojis = [emoji for emoji in emojis if emoji.name in POOP_EMOJIS]
                     await message.add_reaction(random.choice(filter_emojis))

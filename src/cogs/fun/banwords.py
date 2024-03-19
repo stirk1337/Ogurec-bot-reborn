@@ -18,7 +18,9 @@ BAN_WORDS = [
     'стар рэйл',
     'zenless zone zero',
     'арлекино',
-    'arlecchino'
+    'arlecchino',
+    'хср'
+    'hsr'
 ]
 
 POOP_EMOJIS = [
@@ -34,4 +36,6 @@ POOP_EMOJIS = [
     'minus9999999',
     'tyler1_dislike',
     'tyler1_clown',
+    'dislike',
+    'eblan'
 ]
