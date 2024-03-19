@@ -8,9 +8,11 @@ import discord
 from discord import app_commands, Message
 from discord.ext import commands, tasks
 from discord.ext.commands import Bot
-
+from fuzzywuzzy import fuzz
+from fuzzywuzzy import process
 from config import MAIN_CHAT_ID
 from src.cogs.base import BaseCog
+from src.cogs.fun.banwords import BAN_WORDS, POOP_EMOJIS
 from src.cogs.fun.eight_ball import EIGHT_BALL
 from src.cogs.fun.game_reviews import GAME_REVIEWS
 from src.cogs.fun.games_list import GAMES
@@ -47,6 +49,15 @@ class Fun(BaseCog):
 
     async def answer_question(self, message: Message) -> bool:
         if self.bot.user.mentioned_in(message) and message.content[-1] in ['?', '.', '!']:
+            async with message.channel.typing():
+                await send_gpt_message(remove_user_mentions(message.content), use_moods=True)
+                gpt_stack.append(message)
+            return True
+        return False
+
+    async def send_random_phrase(self, message: Message) -> bool:
+        random_number = random.randint(1, 100)
+        if random_number in [1, 2]:
             async with message.channel.typing():
                 await send_gpt_message(remove_user_mentions(message.content), use_moods=True)
                 gpt_stack.append(message)
@@ -95,12 +106,24 @@ class Fun(BaseCog):
             await asyncio.sleep(random.randint(1, 4))
             await message.add_reaction(random.choice(message.guild.emojis))
 
+    async def poop_banword_message(self, message: Message):
+        for word in BAN_WORDS:
+            if fuzz.ratio(word, message.content) >= 50:
+                emojis = message.guild.emojis
+                filter_emojis = [emoji for emoji in emojis if emoji.name in POOP_EMOJIS]
+                await message.add_reaction(random.choice(filter_emojis))
+                return
+
     @commands.Cog.listener()
     async def on_message(self, message: Message):
         if message.author.id in [self.bot.user.id]:
             return
         question = await self.answer_question(message)
         if question:
+            return
+
+        phrase = await self.send_random_phrase(message)
+        if phrase:
             return
 
         ping = await self.answer_ping(message)
@@ -114,6 +137,8 @@ class Fun(BaseCog):
         emoji = await self.send_random_emoji(message)
         if emoji:
             return
+
+        await self.poop_banword_message(message)
 
         await self.set_random_reaction(message)
         self.on_message_counter += 1
@@ -145,7 +170,7 @@ class Fun(BaseCog):
             await channel.send(gif_url)
             self.on_game_counter = 0
 
-    @tasks.loop(hours=3)
+    @tasks.loop(hours=1)
     async def reset_gpt_dialog_history(self):
         await send_gpt_message('Reset dialog history')
         await send_gpt_message('Очистить историю диалога')
