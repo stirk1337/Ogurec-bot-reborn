@@ -107,12 +107,14 @@ class Fun(BaseCog):
             await message.add_reaction(random.choice(message.guild.emojis))
 
     async def poop_banword_message(self, message: Message):
-        for word in BAN_WORDS:
-            if fuzz.ratio(word, message.content) >= 50:
-                emojis = message.guild.emojis
-                filter_emojis = [emoji for emoji in emojis if emoji.name in POOP_EMOJIS]
-                await message.add_reaction(random.choice(filter_emojis))
-                return
+        message_words = message.content.split()
+        for message_word in message_words:
+            for word in BAN_WORDS:
+                if fuzz.ratio(word, message_word.lower()) >= 50:
+                    emojis = message.guild.emojis
+                    filter_emojis = [emoji for emoji in emojis if emoji.name in POOP_EMOJIS]
+                    await message.add_reaction(random.choice(filter_emojis))
+                    return
 
     @commands.Cog.listener()
     async def on_message(self, message: Message):
